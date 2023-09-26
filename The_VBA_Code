@@ -1,0 +1,111 @@
+Sub Button()
+
+    Application.ScreenUpdating = False
+    
+    Dim lStartButton As Button
+    Dim lCellFinder As Range
+
+    ActiveSheet.Buttons.Delete
+
+    Set lCellFinder = ActiveSheet.Range("ButtonCell")
+    Set lStartButton = ActiveSheet.Buttons.Add(lCellFinder.Left, lCellFinder.Top, lCellFinder.Width, lCellFinder.Height)
+
+    With lStartButton
+        .OnAction = "Dataexport"
+        .Caption = "Start"
+        .Name = "Start"
+    End With
+    
+    Application.ScreenUpdating = True
+
+End Sub
+
+Sub Dataexport()
+    
+    Application.ScreenUpdating = False
+    
+    Dim lstrTargetDoc As Variant
+    lstrTargetDoc = Range("lclTemplate").Value
+    
+    Dim lSaveAs As Variant
+    lSaveAs = Range("SaveAs").Value
+    
+    Dim lwdApp As New Word.Application
+    Dim lwdDoc As Word.Document
+    Dim lxlWkBk As Workbook
+    Dim lxlWkSht As Worksheet
+    
+
+    
+    Set lxlWkBk = ThisWorkbook
+    Set lxlWkSht = lxlWkBk.Worksheets("Tabelle1")
+    Set lwdDoc = lwdApp.Documents.Open(Filename:=lxlWkBk.Path & lstrTargetDoc, AddToRecentFiles:=False)
+    
+    Dim lTbl As Table
+    Set lTbl = lwdDoc.Tables(1)
+    
+    On Error Resume Next
+    With lwdDoc.InlineShapes(1)
+        .Select
+        .Delete
+    End With
+    On Error GoTo 0
+    
+    With lxlWkSht
+        .Range("A2:B" & .UsedRange.SpecialCells(xlCellTypeLastCell).Row).Copy Destination:=.Range("N2")
+        .Range("G2:G" & .UsedRange.SpecialCells(xlCellTypeLastCell).Row).Copy Destination:=.Range("P2")
+        
+        Dim lLastLine As Long
+        Dim i As Long
+        lLastLine = lxlWkSht.Cells(lxlWkSht.Rows.Count, "O").End(xlUp).Row
+        For i = 1 To lLastLine - 1
+            .Cells(i + 1, "N").Value = i
+        Next i
+        
+        .Range("N2:Q" & .UsedRange.SpecialCells(xlCellTypeLastCell).Row).Copy
+    End With
+    
+    With lwdDoc
+
+        With lwdDoc.Tables(1)
+            .Range.Characters.Last.PasteAppendTable
+            
+            With lwdDoc.Tables(1).Borders
+                .InsideLineStyle = wdLineStyleSingle
+                .OutsideLineStyle = wdLineStyleSingle
+                .InsideColor = wdColorGray125
+                .OutsideColor = wdColorGray125
+            End With
+            
+            .Rows.Height = 28
+            
+        End With
+        
+        For lRow = 3 To lTbl.Rows.Count
+            With lTbl.Rows(lRow).Range.Font
+                .Size = 10
+                .Name = "Roboto (Body)"
+                .Position = -18
+            End With
+        Next lRow
+        
+        .SaveAs2 Filename:=lxlWkBk.Path & lSaveAs
+        .Close True
+        
+    End With
+    
+    lwdApp.Quit
+    
+    With lxlWkSht
+        .Range("A2:G" & .UsedRange.SpecialCells(xlCellTypeLastCell).Row).Delete (xlShiftUp)
+        .Range("N2:P" & .UsedRange.SpecialCells(xlCellTypeLastCell).Row).Delete (xlShiftUp)
+    End With
+    
+    Application.CutCopyMode = False
+    
+    Set lwdDoc = Nothing: Set lwdApp = Nothing: Set lxlWkSht = Nothing: Set lxlWkBk = Nothing: Set lTbl = Nothing
+    MsgBox "Finished", vbInformation
+    
+    Application.ScreenUpdating = True
+    
+End Sub
